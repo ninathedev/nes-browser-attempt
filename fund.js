@@ -313,9 +313,114 @@ function tay() {
   updateZeroNegativeFlags(registers.Y);
 }
 
+function ldaZeroPage() {
+  const addr = fetchByte();
+  registers.A = readByte(addr);
+  updateZeroNegativeFlags(registers.A);
+}
 
-function clc() { flags.C = 0; }
+function ldaAbsolute() {
+  const addr = fetchWord();
+  registers.A = readByte(addr);
+  updateZeroNegativeFlags(registers.A);
+}
+
+function ldxZeroPage() {
+  const addr = fetchByte();
+  registers.X = readByte(addr);
+  updateZeroNegativeFlags(registers.X);
+}
+
+function ldxAbsolute() {
+  const addr = fetchWord();
+  registers.X = readByte(addr);
+  updateZeroNegativeFlags(registers.X);
+}
+
+function ldyZeroPage() {
+  const addr = fetchByte();
+  registers.Y = readByte(addr);
+  updateZeroNegativeFlags(registers.Y);
+}
+
+function ldyAbsolute() {
+  const addr = fetchWord();
+  registers.Y = readByte(addr);
+  updateZeroNegativeFlags(registers.Y);
+}
+
+function staAbsoluteX() {
+  const base = fetchWord();
+  const addr = (base + registers.X) & 0xFFFF;
+  writeByte(addr, registers.A);
+}
+
+function adcZeroPage() {
+  const addr = fetchByte();
+  const value = readByte(addr);
+  const carryIn = flags.C;
+  const result = registers.A + value + carryIn;
+  const overflow = (~(registers.A ^ value) & (registers.A ^ result)) & 0x80;
+  flags.C = result > 0xFF ? 1 : 0;
+  flags.V = overflow ? 1 : 0;
+  registers.A = result & 0xFF;
+  updateZeroNegativeFlags(registers.A);
+}
+
+function sbcZeroPage() {
+  const addr = fetchByte();
+  const value = readByte(addr);
+  const carryIn = flags.C;
+  const result = registers.A - value - (1 - carryIn);
+  const overflow = ((registers.A ^ result) & (registers.A ^ value)) & 0x80;
+  flags.C = result >= 0 ? 1 : 0;
+  flags.V = overflow ? 1 : 0;
+  registers.A = result & 0xFF;
+  updateZeroNegativeFlags(registers.A);
+}
+
+function pha() {
+  pushByte(registers.A);
+}
+
+function pla() {
+  registers.A = pullByte();
+  updateZeroNegativeFlags(registers.A);
+}
+
+function php() {
+  pushByte(packFlags() | 0x10); // set B flag in stack copy
+}
+
+function plp() {
+  unpackFlags(pullByte());
+}
+
+function jsr() {
+  const addr = fetchWord();
+  pushWord(registers.PC - 1); // push return address -1
+  registers.PC = addr;
+}
+
+function rts() {
+  registers.PC = (pullWord() + 1) & 0xFFFF;
+}
+
+function bitZeroPage() {
+  const addr = fetchByte();
+  const val = readByte(addr);
+  flags.Z = (registers.A & val) === 0 ? 1 : 0;
+  flags.N = (val & 0x80) ? 1 : 0;
+  flags.V = (val & 0x40) ? 1 : 0;
+}
+
 function sec() { flags.C = 1; }
+function cld() { flags.D = 0; }
+function sed() { flags.D = 1; }
+function sei() { flags.I = 1; }
+function cli() { flags.I = 0; }
+function clv() { flags.V = 0; }
+function clc() { flags.C = 0; }
 
 // --- Opcode Table ---
 const instructionTable = {
