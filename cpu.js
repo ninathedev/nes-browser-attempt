@@ -214,11 +214,12 @@ function eorImmediate() {
 
 function cmpImmediate() {
   let value = fetchByte();
-  let result = registers.A - value;
+  let result = (registers.A - value) & 0xFF;
   flags.C = registers.A >= value ? 1 : 0;
-  flags.Z = (result & 0xFF) === 0 ? 1 : 0;
+  flags.Z = result === 0 ? 1 : 0;
   flags.N = (result & 0x80) ? 1 : 0;
 }
+
 
 function bne() {
   let offset = fetchByte();
@@ -510,7 +511,7 @@ function step() {
   let opcode = fetchByte();
   let instruction = instructionTable[opcode];
 
-  console.log(
+  /*console.log(
     `PC=${(registers.PC - 1).toString(16).padStart(4, '0')} ` +
     `OP=${opcode.toString(16).padStart(2, '0')} ` +
     `A=${registers.A.toString(16).padStart(2, '0')} ` +
@@ -518,86 +519,56 @@ function step() {
     `Y=${registers.Y.toString(16).padStart(2, '0')} ` +
     `SP=${registers.SP.toString(16).padStart(2, '0')} ` +
     `Cycle=${cycle}`
-  );
+  );*/
 
   if (instruction) {
     instruction();
+    console.log(`0x${opcode.toString(16).padStart(2, '0')} executed at PC=${(registers.PC - 1).toString(16)}`);
   } else {
-    console.log(`Unknown opcode: ${opcode.toString(16)} at PC=${(registers.PC - 1).toString(16)}`);
+    console.log(`Unknown opcode: ${opcode.toString(16).padStart(2, '0')} at PC=${(registers.PC - 1).toString(16)}`);
     running = false;
   }
+
+  
 }
 
+/*
 const testProgram = [
   0xA9, 0x10,       // LDA #$10
   0x8D, 0x00, 0x02, // STA $0200
-
-  0xA2, 0x05,       // LDX #$05
-  0xA0, 0x03,       // LDY #$03
-
-  0xAA,             // TAX (A -> X)
-  0xA8,             // TAY (A -> Y)
-  0x8A,             // TXA (X -> A)
-  0x98,             // TYA (Y -> A)
-
-  0x69, 0x05,       // ADC #$05
-  0xE9, 0x01,       // SBC #$01
-  0x29, 0x0F,       // AND #$0F
-  0x09, 0xF0,       // ORA #$F0
+  0xA2, 0x10,       // LDX #$10
+  0xA0, 0x10,       // LDY #$10
+  0xAA,             // TAX (X = A)
+  0xA8,             // TAY (Y = A)
+  0x8A,             // TXA (A = X)
+  0x98,             // TYA (A = Y)
+  0x69, 0x05,       // ADC #$05 (A += 0x05)
+  0xE9, 0x02,       // SBC #$02 (A -= 0x02)
+  0x29, 0x13,       // AND #$13
+  0x09, 0x03,       // ORA #$03
   0x49, 0xFF,       // EOR #$FF
-
-  0x85, 0x10,       // STA $0010
-  0xA5, 0x10,       // LDA $0010
-
-  0xB5, 0x00,       // LDA $00,X
-  0x86, 0x11,       // STX $11
-  0x87, 0x12,       // STY $12
-
-  0x18,             // CLC
-  0x38,             // SEC
-
-  0xC9, 0x0F,       // CMP #$0F
-  0xF0, 0x02,       // BEQ skip1
+  0x85, 0x0C,       // STA $0C
+  0xA5, 0x0C,       // LDA $0C
+  0xB5, 0x0C,       // LDA $0C,X (Zero page, X=0x10)
+  0x86, 0x0C,       // STX $0C
+  0x87, 0x0C,       // SAX $0C
+  0x18,             // CLC (Clear Carry)
+  0x38,             // SEC (Set Carry)
+  0xC9, 0x0C,       // CMP #$0C
+  0xF0, 0x01,       // BEQ $01 (skip next NOP if equal)
   0xEA,             // NOP
-  0xD0, 0x02,       // BNE skip2
-  0xEA,             // NOP
-
-  0xE6, 0x10,       // INC $10
-  0xC6, 0x10,       // DEC $10
-
-  0x0A,             // ASL A
-  0x4A,             // LSR A
-  0x2A,             // ROL A
-  0x6A,             // ROR A
-
-  0x06, 0x10,       // ASL $10
-  0x46, 0x10,       // LSR $10
-
-  0x9A,             // TXS
-
-  0x48,             // PHA
-  0x68,             // PLA
-  0x08,             // PHP
-  0x28,             // PLP
-
-  0x24, 0x10,       // BIT $10
-
-  0xF8,             // SED
-  0xD8,             // CLD
-  0x78,             // SEI
-  0x58,             // CLI
-  0xB8,             // CLV
-
-  0x60,             // RTS
-
-  0x00              // BRK
+  0xD0, 0x03,       // BNE $03 (if not equal, jump 3 ahead)
+  0x10, 0x00,       // BPL $00 (final branch, unknown outcome)
+  0x00              // BRK (break, end of program)
 ];
 
 
 
+let program = ``;
 // Load program into memory at $8000
 for (let i = 0; i < testProgram.length; i++) {
   memory[0x8000 + i] = testProgram[i];
+  program += `0x${testProgram[i].toString(16).padStart(2, '0')} `;
 }
 
 // Set reset vector to $8000
@@ -607,6 +578,7 @@ memory[0xFFFD] = 0x80;
 // --- Run Emulator ---
 let running = true;
 reset();
+console.log(`Running program: ${program}`);
 
 while (running) {
   step();
@@ -620,7 +592,7 @@ console.log(`A: ${A}`);
 console.log(`X: ${X}`);
 console.log(`Y: ${Y}`);
 console.log(`SP: ${SP}`);
-console.log(`Status: ${status.toString(2).padStart(8, '0')}`);
+console.log(`Status: ${packFlags().toString(2).padStart(8, '0')}`);
 console.log(`Memory[0x0200]: ${memory[0x0200]}`);
 console.log(`Total cycles: ${cycle}`);
-console.log("Emulation complete.");
+console.log("Emulation complete.");*/
