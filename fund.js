@@ -36,6 +36,11 @@ function fetchWord() {
   return (hi << 8) | lo;
 }
 
+function fetchSignedByte() {
+  const value = fetchByte();
+  return value < 0x80 ? value : value - 0x100;
+}
+
 function readByte(addr) {
   return memory[addr & 0xFFFF];
 }
@@ -74,7 +79,7 @@ function pullWord() {
 // --- Flag Helpers ---
 function packFlags() {
   return (flags.N << 7) | (flags.V << 6) | (1 << 5) | (flags.B << 4) |
-         (flags.D << 3) | (flags.I << 2) | (flags.Z << 1) | flags.C;
+    (flags.D << 3) | (flags.I << 2) | (flags.Z << 1) | flags.C;
 }
 
 function unpackFlags(p) {
@@ -149,12 +154,11 @@ function jmpAbsolute() {
 }
 
 function nop() {
-  // No operation, does nothing
-  // This is a placeholder for NOP instruction
+  // No operation
 }
 
 function staZeroPage() {
-  let addr = fetchByte(); // Just one byte for zero-page address
+  let addr = fetchByte();
   writeByte(addr, registers.A);
 }
 
@@ -172,13 +176,9 @@ function adcImmediate() {
   let value = fetchByte();
   let carryIn = flags.C;
   let result = registers.A + value + carryIn;
-
-  // Overflow detection (signed)
   let overflow = (~(registers.A ^ value) & (registers.A ^ result)) & 0x80;
-
   flags.C = result > 0xFF ? 1 : 0;
   flags.V = overflow ? 1 : 0;
-
   registers.A = result & 0xFF;
   updateZeroNegativeFlags(registers.A);
 }
@@ -187,12 +187,9 @@ function sbcImmediate() {
   let value = fetchByte();
   let carryIn = flags.C;
   let result = registers.A - value - (1 - carryIn);
-
   let overflow = ((registers.A ^ result) & (registers.A ^ value)) & 0x80;
-
   flags.C = result >= 0 ? 1 : 0;
   flags.V = overflow ? 1 : 0;
-
   registers.A = result & 0xFF;
   updateZeroNegativeFlags(registers.A);
 }
@@ -226,7 +223,7 @@ function cmpImmediate() {
 function bne() {
   let offset = fetchByte();
   if (flags.Z === 0) {
-    if (offset & 0x80) offset = offset - 0x100; // signed conversion
+    if (offset & 0x80) offset = offset - 0x100;
     registers.PC = (registers.PC + offset) & 0xFFFF;
   }
 }
@@ -279,20 +276,6 @@ function rorAccumulator() {
   updateZeroNegativeFlags(registers.A);
 }
 
-function incZeroPage() {
-  const addr = fetchByte();
-  const result = (readByte(addr) + 1) & 0xFF;
-  writeByte(addr, result);
-  updateZeroNegativeFlags(result);
-}
-
-function decZeroPage() {
-  const addr = fetchByte();
-  const result = (readByte(addr) - 1) & 0xFF;
-  writeByte(addr, result);
-  updateZeroNegativeFlags(result);
-}
-
 function txa() {
   registers.A = registers.X;
   updateZeroNegativeFlags(registers.A);
@@ -314,53 +297,53 @@ function tay() {
 }
 
 function ldaZeroPage() {
-  const addr = fetchByte();
+  let addr = fetchByte();
   registers.A = readByte(addr);
   updateZeroNegativeFlags(registers.A);
 }
 
 function ldaAbsolute() {
-  const addr = fetchWord();
+  let addr = fetchWord();
   registers.A = readByte(addr);
   updateZeroNegativeFlags(registers.A);
 }
 
 function ldxZeroPage() {
-  const addr = fetchByte();
+  let addr = fetchByte();
   registers.X = readByte(addr);
   updateZeroNegativeFlags(registers.X);
 }
 
 function ldxAbsolute() {
-  const addr = fetchWord();
+  let addr = fetchWord();
   registers.X = readByte(addr);
   updateZeroNegativeFlags(registers.X);
 }
 
 function ldyZeroPage() {
-  const addr = fetchByte();
+  let addr = fetchByte();
   registers.Y = readByte(addr);
   updateZeroNegativeFlags(registers.Y);
 }
 
 function ldyAbsolute() {
-  const addr = fetchWord();
+  let addr = fetchWord();
   registers.Y = readByte(addr);
   updateZeroNegativeFlags(registers.Y);
 }
 
 function staAbsoluteX() {
-  const base = fetchWord();
-  const addr = (base + registers.X) & 0xFFFF;
+  let base = fetchWord();
+  let addr = (base + registers.X) & 0xFFFF;
   writeByte(addr, registers.A);
 }
 
 function adcZeroPage() {
-  const addr = fetchByte();
-  const value = readByte(addr);
-  const carryIn = flags.C;
-  const result = registers.A + value + carryIn;
-  const overflow = (~(registers.A ^ value) & (registers.A ^ result)) & 0x80;
+  let addr = fetchByte();
+  let value = readByte(addr);
+  let carryIn = flags.C;
+  let result = registers.A + value + carryIn;
+  let overflow = (~(registers.A ^ value) & (registers.A ^ result)) & 0x80;
   flags.C = result > 0xFF ? 1 : 0;
   flags.V = overflow ? 1 : 0;
   registers.A = result & 0xFF;
@@ -368,11 +351,11 @@ function adcZeroPage() {
 }
 
 function sbcZeroPage() {
-  const addr = fetchByte();
-  const value = readByte(addr);
-  const carryIn = flags.C;
-  const result = registers.A - value - (1 - carryIn);
-  const overflow = ((registers.A ^ result) & (registers.A ^ value)) & 0x80;
+  let addr = fetchByte();
+  let value = readByte(addr);
+  let carryIn = flags.C;
+  let result = registers.A - value - (1 - carryIn);
+  let overflow = ((registers.A ^ result) & (registers.A ^ value)) & 0x80;
   flags.C = result >= 0 ? 1 : 0;
   flags.V = overflow ? 1 : 0;
   registers.A = result & 0xFF;
@@ -389,7 +372,7 @@ function pla() {
 }
 
 function php() {
-  pushByte(packFlags() | 0x10); // set B flag in stack copy
+  pushByte(packFlags() | 0x10);
 }
 
 function plp() {
@@ -397,8 +380,8 @@ function plp() {
 }
 
 function jsr() {
-  const addr = fetchWord();
-  pushWord(registers.PC - 1); // push return address -1
+  let addr = fetchWord();
+  pushWord(registers.PC - 1);
   registers.PC = addr;
 }
 
@@ -407,17 +390,54 @@ function rts() {
 }
 
 function bitZeroPage() {
-  const addr = fetchByte();
-  const val = readByte(addr);
+  let addr = fetchByte();
+  let val = readByte(addr);
   flags.Z = (registers.A & val) === 0 ? 1 : 0;
   flags.N = (val & 0x80) ? 1 : 0;
   flags.V = (val & 0x40) ? 1 : 0;
 }
 
+function ldaZeroPageX() {
+  let base = fetchByte();
+  let addr = (base + registers.X) & 0xFF;
+  registers.A = readByte(addr);
+  updateZeroNegativeFlags(registers.A);
+}
+
+function aslZeroPage() {
+  let addr = fetchByte();
+  let value = readByte(addr);
+  flags.C = (value >> 7) & 1;
+  let result = (value << 1) & 0xFF;
+  writeByte(addr, result);
+  updateZeroNegativeFlags(result);
+}
+
+function lsrZeroPage() {
+  let addr = fetchByte();
+  let value = readByte(addr);
+  flags.C = value & 1;
+  let result = (value >> 1) & 0xFF;
+  writeByte(addr, result);
+  updateZeroNegativeFlags(result);
+}
+
+function txs() {
+  registers.SP = registers.X;
+}
+
+function bpl() {
+  const offset = fetchSignedByte();
+  if (flags.N === 0) {
+    registers.PC = (registers.PC + offset) & 0xFFFF;
+  }
+}
+
+
 function sec() { flags.C = 1; }
-function cld() { flags.D = 0; }
 function sed() { flags.D = 1; }
 function sei() { flags.I = 1; }
+function cld() { flags.D = 0; }
 function cli() { flags.I = 0; }
 function clv() { flags.V = 0; }
 function clc() { flags.C = 0; }
@@ -453,14 +473,32 @@ const instructionTable = {
   0x4A: lsrAccumulator,
   0x2A: rolAccumulator,
   0x6A: rorAccumulator,
-  0xE6: incZeroPage,
-  0xC6: decZeroPage,
   0x8A: txa,
   0x98: tya,
   0xAA: tax,
   0xA8: tay,
-
+  0xA5: ldaZeroPage,  // LDA zp
+  0xAD: ldaAbsolute,  // LDA abs
+  0xB5: ldaZeroPageX, // LDA zp,X
+  0xBD: staAbsoluteX, // STA abs,X
+  0x06: aslZeroPage,  // ASL zp
+  0x46: lsrZeroPage,  // LSR zp
+  0x9A: txs,          // TXS
+  0x60: rts,          // RTS 
+  0x48: pha,          // PHA
+  0x68: pla,          // PLA
+  0x08: php,          // PHP
+  0x28: plp,          // PLP
+  0x24: bitZeroPage,  // BIT zp
+  0x38: sec,          // SEC
+  0xF8: sed,          // SED
+  0xD8: cld,          // CLD
+  0x78: sei,          // SEI
+  0x58: cli,          // CLI
+  0xB8: clv,          // CLV
+  0x10: bpl,          // BPL rel
 };
+
 
 
 
@@ -490,31 +528,71 @@ function step() {
   }
 }
 
-let testProgram = [
-  0xA9, 0x0F,       // LDA #$0F
+const testProgram = [
+  0xA9, 0x10,       // LDA #$10
+  0x8D, 0x00, 0x02, // STA $0200
+
+  0xA2, 0x05,       // LDX #$05
+  0xA0, 0x03,       // LDY #$03
+
   0xAA,             // TAX (A -> X)
   0xA8,             // TAY (A -> Y)
-  0x18,             // CLC (clear carry)
-  0x69, 0x01,       // ADC #$01 => A = 0F + 01 = 10
-  0x29, 0xF0,       // AND #$F0 => A = 10 & F0 = 10
-  0x09, 0x0F,       // ORA #$0F => A = 10 | 0F = 1F
-  0x49, 0xFF,       // EOR #$FF => A = 1F ^ FF = E0
-  0x0A,             // ASL A => A <<= 1 => C = 1, A = C0
-  0x4A,             // LSR A => A >>= 1 => C = 0, A = 60
-  0x2A,             // ROL A => A = (A << 1 | C) => A = C0, C = 0
-  0x6A,             // ROR A => A = (A >> 1 | C << 7)
-  0x85, 0x10,       // STA $10 (store A)
-  0x86, 0x11,       // STX $11 (store X)
-  0x87, 0x12,       // STY $12 (store Y)
-  0xE6, 0x11,       // INC $11 => X+1
-  0xC6, 0x12,       // DEC $12 => Y-1
-  0xA9, 0x01,       // LDA #$01
-  0xC9, 0x01,       // CMP #$01 => sets Z=1
-  0xF0, 0x02,       // BEQ skip next
-  0xA9, 0xFF,       // (skipped if equal)
-  0x85, 0x20,       // STA $20
+  0x8A,             // TXA (X -> A)
+  0x98,             // TYA (Y -> A)
+
+  0x69, 0x05,       // ADC #$05
+  0xE9, 0x01,       // SBC #$01
+  0x29, 0x0F,       // AND #$0F
+  0x09, 0xF0,       // ORA #$F0
+  0x49, 0xFF,       // EOR #$FF
+
+  0x85, 0x10,       // STA $0010
+  0xA5, 0x10,       // LDA $0010
+
+  0xB5, 0x00,       // LDA $00,X
+  0x86, 0x11,       // STX $11
+  0x87, 0x12,       // STY $12
+
+  0x18,             // CLC
+  0x38,             // SEC
+
+  0xC9, 0x0F,       // CMP #$0F
+  0xF0, 0x02,       // BEQ skip1
+  0xEA,             // NOP
+  0xD0, 0x02,       // BNE skip2
+  0xEA,             // NOP
+
+  0xE6, 0x10,       // INC $10
+  0xC6, 0x10,       // DEC $10
+
+  0x0A,             // ASL A
+  0x4A,             // LSR A
+  0x2A,             // ROL A
+  0x6A,             // ROR A
+
+  0x06, 0x10,       // ASL $10
+  0x46, 0x10,       // LSR $10
+
+  0x9A,             // TXS
+
+  0x48,             // PHA
+  0x68,             // PLA
+  0x08,             // PHP
+  0x28,             // PLP
+
+  0x24, 0x10,       // BIT $10
+
+  0xF8,             // SED
+  0xD8,             // CLD
+  0x78,             // SEI
+  0x58,             // CLI
+  0xB8,             // CLV
+
+  0x60,             // RTS
+
   0x00              // BRK
 ];
+
 
 
 // Load program into memory at $8000
@@ -533,12 +611,16 @@ reset();
 while (running) {
   step();
 }
-console.log("\n--- Test Program Results ---");
-console.log("memory[0x10] (final A):", memory[0x10].toString(16).padStart(2, '0'));
-console.log("memory[0x11] (X after INC):", memory[0x11].toString(16).padStart(2, '0'));
-console.log("memory[0x12] (Y after DEC):", memory[0x12].toString(16).padStart(2, '0'));
-console.log("memory[0x20] (BEQ test passed):", memory[0x20].toString(16).padStart(2, '0'));
-console.log(`Final Flags: Z=${flags.Z} N=${flags.N} C=${flags.C} V=${flags.V}`);
-console.log(`Final A=${registers.A.toString(16)} X=${registers.X.toString(16)} Y=${registers.Y.toString(16)}`);
+const A = registers.A;
+const X = registers.X;
+const Y = registers.Y;
+const SP = registers.SP;
 
-console.log(`Total cycles done: ${cycle}`);
+console.log(`A: ${A}`);
+console.log(`X: ${X}`);
+console.log(`Y: ${Y}`);
+console.log(`SP: ${SP}`);
+console.log(`Status: ${status.toString(2).padStart(8, '0')}`);
+console.log(`Memory[0x0200]: ${memory[0x0200]}`);
+console.log(`Total cycles: ${cycle}`);
+console.log("Emulation complete.");
