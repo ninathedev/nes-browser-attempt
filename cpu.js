@@ -1,3 +1,5 @@
+import { writeRegister } from './ppu.js';
+
 // --- 64KB Memory ---
 const MEMORY_SIZE = 0x10000;
 let memory = new Uint8Array(MEMORY_SIZE);
@@ -46,8 +48,17 @@ function readByte(addr) {
 }
 
 function writeByte(addr, val) {
-  memory[addr & 0xFFFF] = val & 0xFF;
+  addr &= 0xFFFF;
+
+  // PPU registers
+  if (addr >= 0x2000 && addr <= 0x3FFF) {
+    writeRegister(0x2000 + (addr % 8), val);
+    return;
+  }
+
+  memory[addr] = val & 0xFF;
 }
+
 
 function updateZeroNegativeFlags(value) {
   flags.Z = value === 0 ? 1 : 0;
@@ -434,6 +445,29 @@ function bpl() {
   }
 }
 
+function adcAbsolute() {
+  let addr = fetchWord();
+  let value = readByte(addr);
+  let carryIn = flags.C;
+  let result = registers.A + value + carryIn;
+  let overflow = (~(registers.A ^ value) & (registers.A ^ result)) & 0x80;
+  flags.C = result > 0xFF ? 1 : 0;
+  flags.V = overflow ? 1 : 0;
+  registers.A = result & 0xFF;
+  updateZeroNegativeFlags(registers.A);
+}
+
+function sbcAbsolute() {
+  let addr = fetchWord();
+  let value = readByte(addr);
+  let carryIn = flags.C;
+  let result = registers.A - value - (1 - carryIn);
+  let overflow = ((registers.A ^ result) & (registers.A ^ value)) & 0x80;
+  flags.C = result >= 0 ? 1 : 0;
+  flags.V = overflow ? 1 : 0;
+  registers.A = result & 0xFF;
+  updateZeroNegativeFlags(registers.A);
+}
 
 function sec() { flags.C = 1; }
 function sed() { flags.D = 1; }
@@ -498,6 +532,19 @@ const instructionTable = {
   0x58: cli,          // CLI
   0xB8: clv,          // CLV
   0x10: bpl,          // BPL rel
+  0x20: jsr,          // JSR abs
+  0xA6: ldxZeroPage,  // LDX zp
+  0xAE: ldxAbsolute,  // LDX abs
+  0xB6: ldyZeroPage,  // LDY zp
+  0xBE: ldyAbsolute,  // LDY abs
+  0x65: adcZeroPage,  // ADC zp
+  0x75: adcZeroPage,  // ADC zp,X
+  0x6D: adcAbsolute,  // ADC abs
+  0x7D: adcAbsolute,  // ADC abs,X
+  0x61: sbcZeroPage,  // SBC zp
+  0x71: sbcZeroPage,  // SBC zp,Y
+  0x6E: sbcAbsolute,  // SBC abs
+  0x7E: sbcAbsolute,  // SBC abs,X
 };
 
 
